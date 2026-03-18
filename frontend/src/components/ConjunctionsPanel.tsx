@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { AlertTriangle, Crosshair, Clock, Info, ShieldCheck } from 'lucide-react';
 import './ConjunctionsPanel.css';
 
 interface ConjunctionsPanelProps {
   conjunctions: any[];
+  onScheduleManeuver?: (msg: string) => void;
 }
 
-const ConjunctionsPanel = ({ conjunctions = [] }: ConjunctionsPanelProps) => {
+const ConjunctionsPanel = ({ conjunctions = [], onScheduleManeuver }: ConjunctionsPanelProps) => {
   if (!conjunctions || conjunctions.length === 0) {
     return (
       <div className="conjunctions-panel glass-panel">
@@ -75,7 +77,23 @@ const ConjunctionsPanel = ({ conjunctions = [] }: ConjunctionsPanelProps) => {
                 <button className="btn-action">
                   <Info size={14} /> Details
                 </button>
-                <button className={`btn-maneuver ${isCritical ? 'primary-red' : 'primary-blue'}`}>
+                <button 
+                  className={`btn-maneuver ${isCritical ? 'primary-red' : 'primary-blue'}`}
+                  onClick={async () => {
+                    try {
+                      await axios.post('http://localhost:5000/api/maneuver/schedule', {
+                        satelliteId: conj.primaryObject,
+                        reason: `Collision avoidance for ${conj.secondaryObject}`,
+                        priority: isCritical ? 'critical' : 'high'
+                      });
+                      if (onScheduleManeuver) {
+                        onScheduleManeuver(`Maneuver scheduled for ${conj.primaryObject} vs ${conj.secondaryObject}`);
+                      }
+                    } catch (err) {
+                      console.error('Failed to schedule maneuver', err);
+                    }
+                  }}
+                >
                   <Crosshair size={14} /> Schedule Maneuver
                 </button>
               </div>

@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Satellite, ShieldAlert, Rocket, Activity } from 'lucide-react';
+import { Satellite, ShieldAlert, Rocket, Activity, Box, Map } from 'lucide-react';
 import './Navbar.css';
 
-const Navbar = () => {
+interface NavbarProps {
+  activeTab?: 'info' | '3d' | '2d';
+  onTabChange?: (tab: 'info' | '3d' | '2d') => void;
+}
+
+const Navbar = ({ activeTab = 'info', onTabChange = () => {} }: NavbarProps) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -22,18 +27,17 @@ const Navbar = () => {
       </Link>
 
       <div className="navbar-links">
-        <div className="nav-item active">
+        <div className={`nav-item ${activeTab === 'info' ? 'active' : ''}`} onClick={() => onTabChange('info')} style={{ cursor: 'pointer' }}>
           <Activity size={18} />
           <span>Dashboard</span>
         </div>
-        <div className="nav-item">
-          <Satellite size={18} />
-          <span>Fleet</span>
+        <div className={`nav-item ${activeTab === '3d' ? 'active' : ''}`} onClick={() => onTabChange('3d')} style={{ cursor: 'pointer' }}>
+          <Box size={18} />
+          <span>3D Model</span>
         </div>
-        <div className="nav-item warning-item">
-          <ShieldAlert size={18} />
-          <span>Conjunctions</span>
-          <div className="badge">2</div>
+        <div className={`nav-item ${activeTab === '2d' ? 'active' : ''}`} onClick={() => onTabChange('2d')} style={{ cursor: 'pointer' }}>
+          <Map size={18} />
+          <span>2D Map</span>
         </div>
       </div>
 

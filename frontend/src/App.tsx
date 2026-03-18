@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import Landing from './pages/Landing';
 import './App.css';
@@ -9,14 +8,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={
-          <div className="app-container">
-            <Navbar />
-            <main className="main-content">
-              <Dashboard />
-            </main>
-          </div>
-        } />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   );

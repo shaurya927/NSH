@@ -17,10 +17,25 @@ import { mockSatellites, mockDebris, mockConjunctions } from '../services/mockDa
 export function simulateStep(req: Request, res: Response): void {
   const { stepNumber = 1, deltaTime = 60 } = req.body;
 
-  // TODO: Propagate satellite orbits using SGP4
-  // TODO: Propagate debris objects
-  // TODO: Screen for conjunctions
-  // TODO: Execute pending maneuvers
+  // Mutate mock data to simulate propagation
+  mockSatellites.forEach((sat) => {
+    sat.fuelLevel = Math.max(0, sat.fuelLevel - (Math.random() * 0.2));
+    sat.telemetry.altitude = Math.max(0, sat.telemetry.altitude - (Math.random() * 0.5));
+    sat.telemetry.velocity.vy += (Math.random() * 0.02 - 0.01);
+    
+    // Randomize health slightly for critical ones
+    if (sat.status === 'warning' || sat.status === 'critical') {
+      sat.health = Math.max(0, sat.health - Math.random() * 2);
+    }
+  });
+
+  mockConjunctions.forEach((conj) => {
+    conj.missDistance = Math.max(0, conj.missDistance - (Math.random() * 0.1));
+    conj.probability = Math.min(1, conj.probability + (Math.random() * 0.005));
+    if (conj.missDistance < 0.5) {
+      conj.riskLevel = 'critical';
+    }
+  });
 
   const simulationState: SimulationState = {
     stepNumber,

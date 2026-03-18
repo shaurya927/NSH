@@ -1,0 +1,69 @@
+.map-visualizer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #0a0a0c;
+}
+
+.custom-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-tooltip {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: white !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  padding: 2px 6px !important;
+  backdrop-filter: blur(4px);
+}
+
+.leaflet-tooltip-right::before {
+  border-right-color: rgba(6, 182, 212, 0.3) !important;
+}
+
+.leaflet-container {
+  font-family: var(--font-mono) !important;
+  background-color: #0a0a0c !important;
+}
+
+.telemetry-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.data-box {
+  position: absolute;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+}
+
+.top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.data-box .label {
+  font-size: 0.65rem;
+  color: var(--accent-cyan);
+  margin-bottom: 2px;
+}
+
+.data-box .value {
+  font-size: 0.85rem;
+  color: white;
+}
