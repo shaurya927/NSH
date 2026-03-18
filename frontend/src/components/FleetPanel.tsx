@@ -34,26 +34,26 @@ const FleetPanel = ({ satellites = [] }: FleetPanelProps) => {
             <div className="sat-details">
               <div className="detail-item">
                 <Hash size={12} className="text-muted" />
-                <span className="mono-text">{sat.noradId}</span>
+                <span className="mono-text">{sat.noradId ?? 'N/A'}</span>
               </div>
               <div className="detail-item">
                 <Activity size={12} className="text-muted" />
-                <span className="mono-text">{sat.health}%</span>
+                <span className="mono-text">{sat.health ?? '--'}%</span>
               </div>
               <div className="detail-item">
                 <Battery size={12} className="text-muted" />
-                <span className="mono-text">{sat.fuelLevel}%</span>
+                <span className="mono-text">{sat.fuelLevel ?? '--'}%</span>
               </div>
             </div>
             
             <div className="sat-telemetry">
               <div className="telemetry-col">
                 <span className="label">ALT</span>
-                <span className="value mono-text">{sat.telemetry.altitude.toFixed(1)} km</span>
+                <span className="value mono-text">{sat.telemetry?.altitude?.toFixed(1) ?? 'N/A'} km</span>
               </div>
               <div className="telemetry-col">
                 <span className="label">VEL</span>
-                <span className="value mono-text">{sat.telemetry.velocity.vy.toFixed(2)} km/s</span>
+                <span className="value mono-text">{sat.telemetry?.velocity?.vy?.toFixed(2) ?? 'N/A'} km/s</span>
               </div>
             </div>
           </motion.div>

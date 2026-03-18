@@ -28,7 +28,7 @@ const customIcon = (color: string) => new L.DivIcon({
   iconAnchor: [6, 6]
 });
 
-const MapVisualizer = ({ satellites = [], debris = [] }: MapVisualizerProps) => {
+const MapVisualizer = ({ satellites = [], debris: _debris = [] }: MapVisualizerProps) => {
   const [time, setTime] = useState(0);
 
   useEffect(() => {
