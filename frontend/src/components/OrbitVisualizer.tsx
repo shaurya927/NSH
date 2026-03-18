@@ -169,28 +169,32 @@ const Moon = () => {
   );
 };
 
-const SatelliteNode = ({ satellite, orbit, index }: { satellite: any, orbit: any, index: number }) => {
+const SatelliteNode = ({ satellite, orbit }: { satellite: any, orbit: any }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const color = satellite.status === 'critical' ? '#ef4444' : satellite.status === 'warning' ? '#f59e0b' : '#10b981';
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (!meshRef.current) return;
-    const time = clock.getElapsedTime() * 0.5;
-    const t = time * (1.5 - (index * 0.1)) + (index * 1.5);
     
-    // Orbital propagation along X-Z plane
-    const x = Math.cos(t) * orbit.radius;
-    const z = Math.sin(t) * orbit.radius;
-    meshRef.current.position.set(x, 0, z);
+    // Map engine lat/lon to 3D sphere coordinate
+    const latRad = (satellite.telemetry?.latitude || 0) * (Math.PI / 180);
+    const lonRad = (satellite.telemetry?.longitude || 0) * (Math.PI / 180);
+    const radius = orbit.radius || 3.3; 
+    
+    // Spherical to Cartesian (Y-up standard)
+    const targetX = radius * Math.cos(latRad) * Math.cos(lonRad);
+    const targetY = radius * Math.sin(latRad);
+    const targetZ = radius * -Math.cos(latRad) * Math.sin(lonRad); 
+
+    // Smoothly fly to target when sim ticks
+    meshRef.current.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.1);
   });
 
   return (
-    <group rotation={[orbit.tiltX, 0, orbit.tiltZ]}>
-      {/* The moving satellite */}
+    <group>
       <mesh ref={meshRef}>
         <sphereGeometry args={[0.08, 16, 16]} />
         <meshBasicMaterial color={color} />
-        {/* HTML UI overlaid on the 3D position */}
         <Html center zIndexRange={[100, 0]}>
           <div style={{ 
             color: 'white', fontFamily: 'var(--font-mono)', fontSize: '10px', 
@@ -203,8 +207,7 @@ const SatelliteNode = ({ satellite, orbit, index }: { satellite: any, orbit: any
         </Html>
       </mesh>
       
-      {/* The static orbital ring */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+      <mesh rotation={[orbit.tiltX, 0, orbit.tiltZ]}>
          <ringGeometry args={[orbit.radius, orbit.radius + 0.015, 64]} />
          <meshBasicMaterial color="white" transparent opacity={0.05} side={THREE.DoubleSide} />
       </mesh>
@@ -212,21 +215,27 @@ const SatelliteNode = ({ satellite, orbit, index }: { satellite: any, orbit: any
   );
 };
 
-const DebrisNode = ({ debris: _debris, orbit, index }: { debris: any, orbit: any, index: number }) => {
+const DebrisNode = ({ debris: deb, orbit }: { debris: any, orbit: any }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (!meshRef.current) return;
-    const time = clock.getElapsedTime() * 0.3;
-    const t = -time * (2 - (index * 0.2)) + (index * 2.5); // retrograde
     
-    const x = Math.cos(t) * orbit.radius;
-    const z = Math.sin(t) * orbit.radius;
-    meshRef.current.position.set(x, 0, z);
+    const latRad = (deb.latitude || 0) * (Math.PI / 180);
+    const lonRad = (deb.longitude || 0) * (Math.PI / 180);
+    const radius = orbit.radius || 4.2;
+    
+    // Spherical to Cartesian (Y-up standard)
+    const targetX = radius * Math.cos(latRad) * Math.cos(lonRad);
+    const targetY = radius * Math.sin(latRad);
+    const targetZ = radius * -Math.cos(latRad) * Math.sin(lonRad);
+
+    // Smoothly fly to target when sim ticks
+    meshRef.current.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.1);
   });
 
   return (
-    <group rotation={[orbit.tiltX, 0, orbit.tiltZ]}>
+    <group>
       <mesh ref={meshRef}>
         <boxGeometry args={[0.05, 0.05, 0.05]} />
         <meshBasicMaterial color="#64748b" />
@@ -273,10 +282,10 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
         </Suspense>
         
         {satellites.map((sat, i) => (
-          <SatelliteNode key={`sat-${i}`} satellite={sat} orbit={satelliteOrbits[i % satelliteOrbits.length]} index={i} />
+          <SatelliteNode key={`sat-${i}`} satellite={sat} orbit={satelliteOrbits[i % satelliteOrbits.length]} />
         ))}
         {debris.map((deb, i) => (
-          <DebrisNode key={`deb-${i}`} debris={deb} orbit={debrisOrbits[i % debrisOrbits.length]} index={i} />
+          <DebrisNode key={`deb-${i}`} debris={deb} orbit={debrisOrbits[i % debrisOrbits.length]} />
         ))}
       </Canvas>
       

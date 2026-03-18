@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, Polyline, Tooltip, LayerGroup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -29,47 +29,28 @@ const customIcon = (color: string) => new L.DivIcon({
 });
 
 const MapVisualizer = ({ satellites = [], debris: _debris = [] }: MapVisualizerProps) => {
-  const [time, setTime] = useState(0);
-
-  useEffect(() => {
-    // Advanced live propagation ticker for visualizer only
-    const interval = setInterval(() => {
-      setTime(t => t + 0.1);
-    }, 100); // 100ms for smooth live updates
-    return () => clearInterval(interval);
-  }, []);
-
+  // Use real data from the Backend/Engine instead of a mocked timer
   const liveSatellites = useMemo(() => {
-    return satellites.map((sat, i) => {
-      const speed = 0.05 + (i * 0.01);
-      const phase = i * 2;
-      
-      const rawLng = ((time * speed * 50 + phase * 30) % 360) - 180;
-      const lat = Math.sin((time * speed + phase) * 2) * 60;
+    return satellites.map((sat) => {
+      const lat = sat.telemetry?.latitude || 0;
+      const lng = sat.telemetry?.longitude || 0;
       
       const color = sat.status === 'critical' ? '#ef4444' : sat.status === 'warning' ? '#f59e0b' : '#10b981';
-      const footprintRadius = 800000 + (sat.telemetry.altitude * 200); 
+      const altitude = sat.telemetry?.altitude || 400;
+      const footprintRadius = 800000 + (altitude * 200); 
       
-      const trail = [];
-      for (let t = 0; t < 15; t++) {
-        const pastTime = time - t * 0.5;
-        const pastLng = ((pastTime * speed * 50 + phase * 30) % 360) - 180;
-        const pastLat = Math.sin((pastTime * speed + phase) * 2) * 60;
-        if (Math.abs(pastLng - rawLng) < 180) { 
-           trail.push([pastLat, pastLng] as [number, number]);
-        }
-      }
+      const trail: [number, number][] = [];
 
       return {
         ...sat,
         lat,
-        lng: rawLng,
+        lng,
         color,
         footprintRadius,
         trail
       };
     });
-  }, [satellites, time]);
+  }, [satellites]);
 
   return (
     <div className="map-visualizer">

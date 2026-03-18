@@ -173,11 +173,10 @@ export function transformSnapshot(engineData: any) {
         noradId: meta?.noradId ?? id,
         type: meta?.type ?? 'fragment',
         size: meta?.size ?? 'small',
-        position: {
-          x: (R_EARTH_KM + (alt || 400)) * Math.cos((lat || 0) * Math.PI / 180) * Math.cos((lon || 0) * Math.PI / 180),
-          y: (R_EARTH_KM + (alt || 400)) * Math.cos((lat || 0) * Math.PI / 180) * Math.sin((lon || 0) * Math.PI / 180),
-          z: (R_EARTH_KM + (alt || 400)) * Math.sin((lat || 0) * Math.PI / 180),
-        },
+        latitude: lat || 0,
+        longitude: lon || 0,
+        altitude: alt || 400,
+        position: { x: 0, y: 0, z: 0 },
         velocity: { vx: -0.5 + Math.random(), vy: 7.3 + Math.random() * 0.2, vz: Math.random() * 0.2 - 0.1 },
         riskLevel: meta?.riskLevel ?? 'medium',
       };
