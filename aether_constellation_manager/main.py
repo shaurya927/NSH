@@ -1,8 +1,10 @@
+# AETHER Constellation Manager API
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
-from datetime import datetime, timedelta
+from typing import List, Dict, Any
+from datetime import datetime, timedelta, timezone
+
 
 # ==========================================
 # 1. INITIALIZE API & SECURITY (CORS)
@@ -21,7 +23,7 @@ app.add_middleware(
 # ==========================================
 # 2. INTERNAL MEMORY (Global State)
 # ==========================================
-global_state = {
+global_state: Dict[str, Any] = {
     "satellites": {},
     "debris": {},
     "last_update": None
@@ -97,7 +99,7 @@ async def schedule_maneuver(payload: ManeuverSchedulePayload):
 async def simulate_step(payload: SimulateStepPayload):
     current_time = global_state.get("last_update")
     if current_time is None:
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         
     new_time = current_time + timedelta(seconds=payload.step_seconds)
     global_state["last_update"] = new_time
@@ -138,3 +140,9 @@ async def visualization_snapshot():
 @app.get("/")
 def read_root():
     return {"message": "AETHER Constellation Manager API is fully online!"}
+
+# ==========================================
+# 5. EXECUTION BLOCK
+# ==========================================
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
