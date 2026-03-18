@@ -1,6 +1,7 @@
 import { useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import './OrbitVisualizer.css';
 
@@ -55,49 +56,79 @@ const StarfieldEnvironment = () => {
 };
 
 const Sun = () => {
+  const coreRef = useRef<THREE.Mesh>(null);
   const coronaRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
+  const [sunMap] = useLoader(THREE.TextureLoader, ['/sun.jpg']);
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
+    if (coreRef.current) {
+      coreRef.current.rotation.y = t * 0.05; // slowly rotate the texture
+    }
     if (coronaRef.current) {
-      const scale1 = 1 + Math.sin(t * 3) * 0.02;
+      const scale1 = 1 + Math.sin(t * 2) * 0.015;
       coronaRef.current.scale.set(scale1, scale1, scale1);
     }
     if (glowRef.current) {
-      const scale2 = 1 + Math.sin(t * 1.5) * 0.04;
+      const scale2 = 1 + Math.sin(t * 1.5) * 0.025;
       glowRef.current.scale.set(scale2, scale2, scale2);
     }
   });
 
   return (
     <group position={[40, 5, 25]}>
-      {/* Sun Core (Blinding White-Yellow) */}
-      <mesh>
-        <sphereGeometry args={[3, 32, 32]} />
-        <meshBasicMaterial color="#ffffff" />
+      {/* Sun Core with NASA Texture */}
+      <mesh ref={coreRef}>
+        <sphereGeometry args={[3, 64, 64]} />
+        <meshBasicMaterial 
+          map={sunMap} 
+          toneMapped={false}
+          color={[1.5, 1.5, 1.5]}
+        />
       </mesh>
       
-      {/* Inner Corona (Bright Yellow/Orange pulse) */}
+      {/* Inner Corona (Bright Yellow pulse) */}
       <mesh ref={coronaRef}>
-        <sphereGeometry args={[3.4, 32, 32]} />
-        <meshBasicMaterial color="#fcd34d" transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <sphereGeometry args={[3.3, 32, 32]} />
+        <meshBasicMaterial 
+          color={[2.0, 0.8, 0.2]} 
+          toneMapped={false}
+          transparent 
+          opacity={0.3} 
+          blending={THREE.AdditiveBlending} 
+          depthWrite={false} 
+        />
       </mesh>
 
       {/* Outer Glow (Deep Red/Orange) */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[4.5, 32, 32]} />
-        <meshBasicMaterial color="#ea580c" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial 
+          color={[1.5, 0.4, 0.0]} 
+          toneMapped={false}
+          transparent 
+          opacity={0.15} 
+          blending={THREE.AdditiveBlending} 
+          depthWrite={false} 
+        />
       </mesh>
       
       {/* Super massive faint solar atmosphere */}
       <mesh>
         <sphereGeometry args={[8, 32, 32]} />
-        <meshBasicMaterial color="#fb923c" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial 
+          color="#fb923c" 
+          transparent 
+          opacity={0.05} 
+          blending={THREE.AdditiveBlending} 
+          depthWrite={false} 
+        />
       </mesh>
       
       {/* Primary directional illumination */}
-      <pointLight intensity={600} color="#fffbeb" distance={300} decay={1.5} />
+      <pointLight intensity={800} color="#fffbeb" distance={400} decay={1.5} />
     </group>
   );
 };
@@ -228,6 +259,10 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
         <color attach="background" args={['#0a0a0c']} />
         <ambientLight intensity={0.05} />
         
+        <EffectComposer disableNormalPass>
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
+        </EffectComposer>
+
         <OrbitControls enablePan={true} enableZoom={true} minDistance={3} maxDistance={40} />
         
         <Suspense fallback={null}>
