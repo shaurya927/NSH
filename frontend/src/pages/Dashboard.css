@@ -4,6 +4,15 @@
   gap: 24px;
 }
 
+.fullscreen-3d {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-dark);
+  z-index: 9999;
+}
+
 .dashboard-header {
   display: flex;
   justify-content: space-between;

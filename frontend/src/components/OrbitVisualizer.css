@@ -8,6 +8,10 @@
   overflow: hidden;
 }
 
+.orbit-visualizer.fullscreen {
+  min-height: 0;
+}
+
 .orbit-canvas {
   width: 100%;
   height: 100%;

@@ -8,6 +8,8 @@ interface OrbitVisualizerProps {
   satellites: any[];
   debris: any[];
   conjunctions: any[];
+  minimal?: boolean;
+  fullscreen?: boolean;
 }
 
 const EarthGlobe = () => {
@@ -179,7 +181,7 @@ const SatelliteNode = ({ satellite, orbit, index }: { satellite: any, orbit: any
   );
 };
 
-const DebrisNode = ({ debris, orbit, index }: { debris: any, orbit: any, index: number }) => {
+const DebrisNode = ({ debris: _debris, orbit, index }: { debris: any, orbit: any, index: number }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   
   useFrame(({ clock }) => {
@@ -202,7 +204,7 @@ const DebrisNode = ({ debris, orbit, index }: { debris: any, orbit: any, index: 
   );
 };
 
-const OrbitVisualizer = ({ satellites = [], debris = [] }: OrbitVisualizerProps) => {
+const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullscreen = false }: OrbitVisualizerProps) => {
   // Precompute orbits safely
   const satelliteOrbits = useMemo(() => [
     { radius: 3.2, tiltX: 0.2, tiltZ: 0.5 },
@@ -221,8 +223,8 @@ const OrbitVisualizer = ({ satellites = [], debris = [] }: OrbitVisualizerProps)
   ], []);
 
   return (
-    <div className="orbit-visualizer" style={{ width: '100%', height: '100%', minHeight: '600px', position: 'relative' }}>
-      <Canvas camera={{ position: [0, 2, 8], fov: 45 }}>
+    <div className={`orbit-visualizer ${fullscreen ? 'fullscreen' : ''}`} style={{ width: '100%', height: '100%', minHeight: fullscreen ? 0 : '600px', position: 'relative' }}>
+      <Canvas className="orbit-canvas" camera={{ position: [0, 2, 8], fov: 45 }}>
         <color attach="background" args={['#0a0a0c']} />
         <ambientLight intensity={0.05} />
         
@@ -243,17 +245,19 @@ const OrbitVisualizer = ({ satellites = [], debris = [] }: OrbitVisualizerProps)
         ))}
       </Canvas>
       
-      <div className="telemetry-overlay" style={{ pointerEvents: 'none' }}>
-        <div className="data-box top-left glass-panel" style={{ pointerEvents: 'auto' }}>
-          <span className="mono-text label">ORBITAL PROPAGATOR</span>
-          <span className="mono-text value">THREE.JS WEBGL</span>
+      {!minimal && (
+        <div className="telemetry-overlay" style={{ pointerEvents: 'none' }}>
+          <div className="data-box top-left glass-panel" style={{ pointerEvents: 'auto' }}>
+            <span className="mono-text label">ORBITAL PROPAGATOR</span>
+            <span className="mono-text value">THREE.JS WEBGL</span>
+          </div>
+          
+          <div className="data-box bottom-right glass-panel" style={{ pointerEvents: 'auto' }}>
+            <span className="mono-text label">INTERACTION</span>
+            <span className="mono-text value">ALT-DRAG ROTATE</span>
+          </div>
         </div>
-        
-        <div className="data-box bottom-right glass-panel" style={{ pointerEvents: 'auto' }}>
-          <span className="mono-text label">INTERACTION</span>
-          <span className="mono-text value">ALT-DRAG ROTATE</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
