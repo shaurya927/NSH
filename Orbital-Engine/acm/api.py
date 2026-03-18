@@ -5,13 +5,29 @@ from threading import RLock
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 from engine import ACMEngine
+from engine.utils import EngineConfig
 
+
+# Configure engine with TCA prediction and auto-avoidance enabled.
+_cfg = EngineConfig(
+    enable_tca_prediction=True,
+    enable_auto_avoidance=True,
+    enable_station_keeping=True,
+    conjunction_candidate_radius_km=10.0,
+    collision_future_horizon_s=86_400.0,  # 24 hours
+    risk_critical_km=0.1,
+    risk_medium_km=1.0,
+    risk_low_km=5.0,
+    max_conjunction_results=2000,
+)
 
 # Global engine instance reused by all requests.
-ENGINE = ACMEngine()
+ENGINE = ACMEngine(_cfg)
 _ENGINE_LOCK = RLock()
+
 
 
 class TelemetryIn(BaseModel):
@@ -55,6 +71,15 @@ app = FastAPI(
     title="ACM Engine Integration API",
     version="1.0.0",
     description="Thin API layer over ACMEngine.",
+)
+
+# Allow cross-origin requests from the Express backend & frontend.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

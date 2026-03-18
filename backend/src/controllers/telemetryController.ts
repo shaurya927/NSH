@@ -4,30 +4,47 @@
 // ============================================
 
 import { Request, Response } from 'express';
-import { ApiResponse } from '../models/types';
+import { proxyTelemetry } from '../services/engineProxy';
 
 /**
  * POST /api/telemetry
  * Accepts telemetry data from satellites.
- * TODO: Process and store telemetry data in database
- * TODO: Trigger anomaly detection pipeline
+ * Proxies to ACMEngine when available.
  */
-export function ingestTelemetry(req: Request, res: Response): void {
+export async function ingestTelemetry(req: Request, res: Response): Promise<void> {
   const telemetryData = req.body;
 
-  // TODO: Validate incoming telemetry data
-  // TODO: Store in time-series database
-  // TODO: Run real-time anomaly checks
+  // Normalize input: accept { objects: [...] } or direct array
+  const objects = Array.isArray(telemetryData)
+    ? telemetryData
+    : telemetryData.objects || [telemetryData];
 
-  const response: ApiResponse<{ received: boolean; objectCount: number }> = {
+  try {
+    const engineResult = await proxyTelemetry(objects);
+
+    if (engineResult.ok && engineResult.data) {
+      res.json({
+        success: true,
+        data: engineResult.data,
+        timestamp: new Date().toISOString(),
+        message: 'Telemetry ingested by ACMEngine',
+        engineOnline: true,
+      });
+      return;
+    }
+  } catch (err) {
+    console.error('Engine telemetry proxy error:', err);
+  }
+
+  // Fallback
+  res.json({
     success: true,
     data: {
       received: true,
-      objectCount: Array.isArray(telemetryData) ? telemetryData.length : 1,
+      objectCount: objects.length,
     },
     timestamp: new Date().toISOString(),
-    message: 'Telemetry data received and queued for processing',
-  };
-
-  res.json(response);
+    message: 'Telemetry received (offline mode)',
+    engineOnline: false,
+  });
 }

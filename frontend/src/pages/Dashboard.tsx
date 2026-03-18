@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Clock, ShieldCheck, Crosshair, Satellite } from 'lucide-react';
+import { AlertTriangle, Clock, ShieldCheck, Crosshair, Satellite, Zap } from 'lucide-react';
 import FleetPanel from '../components/FleetPanel';
 import ConjunctionsPanel from '../components/ConjunctionsPanel';
 import OrbitVisualizer from '../components/OrbitVisualizer';
@@ -39,36 +39,58 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<'info' | '3d' | '2d'>('info');
   const is3D = activeTab === '3d';
   const [offlineMode, setOfflineMode] = useState(false);
+  const [engineOnline, setEngineOnline] = useState(false);
+  const [simTime, setSimTime] = useState(0);
+  const [lastStepResult, setLastStepResult] = useState<any>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const fetchSnapshot = async () => {
+  const fetchSnapshot = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/visualization/snapshot`);
-      setData(res.data.data);
-      setOfflineMode(false);
+      const responseData = res.data.data || res.data;
+      setData(responseData);
+      setEngineOnline(res.data.engineOnline ?? false);
+      setOfflineMode(!res.data.engineOnline && !responseData.satellites?.length);
+      if (responseData.simulationTime) {
+        setSimTime(responseData.simulationTime);
+      }
       setLoading(false);
     } catch (err) {
       console.error("Failed to fetch AETHER data", err);
       setOfflineMode(true);
+      setEngineOnline(false);
       setLoading(false);
       setData((prev: any) => prev ?? OFFLINE_DATA);
     }
-  };
+  }, []);
 
   const advanceSimulation = async () => {
     try {
       setIsSimulating(true);
-      const res = await axios.post(`${API_URL}/simulate/step`, { 
-        stepNumber: step + 1,
-        deltaTime: 60 
+      const res = await axios.post(`${API_URL}/simulate/step`, {
+        step_seconds: 60,
       });
-      // Mock data returns the same snapshot structure roughly
-      setData(res.data.data);
+      const responseData = res.data.data || res.data;
+      setData(responseData);
       setStep(prev => prev + 1);
+
+      // Capture engine result for display
+      if (res.data.engineResult) {
+        setLastStepResult(res.data.engineResult);
+        setSimTime(res.data.engineResult.simulationTime || 0);
+
+        const collCount = res.data.engineResult.collisionsDetected?.length || 0;
+        const maneuvers = res.data.engineResult.maneuversExecuted || 0;
+        if (collCount > 0 || maneuvers > 0) {
+          showToast(`Step ${step + 1}: ${collCount} collisions, ${maneuvers} maneuvers`);
+        }
+      }
+
+      setEngineOnline(res.data.engineOnline ?? false);
     } catch (err) {
       console.error("Simulation failed", err);
       showToast('Backend offline — simulation unavailable');
@@ -79,9 +101,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchSnapshot();
-    const interval = setInterval(fetchSnapshot, 10000); // Auto refresh every 10s
+    const interval = setInterval(fetchSnapshot, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchSnapshot]);
 
   useEffect(() => {
     if (!is3D) return;
@@ -111,6 +133,13 @@ const Dashboard = () => {
 
   const criticalSatellites = data.satellites?.filter((s: any) => s.status === 'critical' || s.status === 'warning') || [];
   const highRiskConjunctions = data.conjunctions?.filter((c: any) => c.riskLevel === 'high' || c.riskLevel === 'critical') || [];
+
+  const formatSimTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `T+${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   if (is3D) {
     return (
@@ -168,7 +197,16 @@ const Dashboard = () => {
             <div className="dashboard-header">
               <div className="header-title">
                 <h2>Network Overview</h2>
-                <p className="subtitle">Real-time telemetry and orbital propagation</p>
+                <p className="subtitle">
+                  {engineOnline ? (
+                    <>
+                      <Zap size={14} style={{ color: 'var(--status-nominal)', marginRight: '6px', verticalAlign: 'middle' }} />
+                      <span>ACMEngine Live — {formatSimTime(simTime)}</span>
+                    </>
+                  ) : (
+                    'Real-time telemetry and orbital propagation'
+                  )}
+                </p>
               </div>
               
               <div className="simulation-controls glass-panel">
@@ -179,7 +217,7 @@ const Dashboard = () => {
                 <button 
                   className={`btn-advance ${isSimulating ? 'simulating' : ''}`}
                   onClick={advanceSimulation}
-                  disabled={isSimulating || offlineMode}
+                  disabled={isSimulating}
                 >
                   <Clock size={16} />
                   <span>{isSimulating ? 'PROPAGATING...' : 'ADVANCE +60s'}</span>
@@ -209,7 +247,7 @@ const Dashboard = () => {
                 <div className="kpi-icon bg-cyan"><Crosshair size={20} /></div>
                 <div className="kpi-info">
                   <span className="kpi-label">Tracked Debris</span>
-                  <span className="kpi-value">{data.debris?.length || 0}</span>
+                  <span className="kpi-value">{Array.isArray(data.debris) ? data.debris.length : (data.debris?.count || 0)}</span>
                 </div>
               </motion.div>
 

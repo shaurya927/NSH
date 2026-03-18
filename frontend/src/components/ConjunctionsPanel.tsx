@@ -3,6 +3,8 @@ import axios from 'axios';
 import { AlertTriangle, Crosshair, Clock, Info, ShieldCheck } from 'lucide-react';
 import './ConjunctionsPanel.css';
 
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+
 interface ConjunctionsPanelProps {
   conjunctions: any[];
   onScheduleManeuver?: (msg: string) => void;
@@ -81,7 +83,8 @@ const ConjunctionsPanel = ({ conjunctions = [], onScheduleManeuver }: Conjunctio
                   className={`btn-maneuver ${isCritical ? 'primary-red' : 'primary-blue'}`}
                   onClick={async () => {
                     try {
-                      await axios.post('http://localhost:5000/api/maneuver/schedule', {
+                      await axios.post(`${API_URL}/maneuver/schedule`, {
+                        object_id: conj.primaryObject,
                         satelliteId: conj.primaryObject,
                         reason: `Collision avoidance for ${conj.secondaryObject}`,
                         priority: isCritical ? 'critical' : 'high'

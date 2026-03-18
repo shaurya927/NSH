@@ -28,8 +28,9 @@ router.get('/health', (_req, res) => {
   res.json({
     status: 'online',
     service: 'AETHER Mission Control API',
-    version: '1.0.0',
+    version: '2.0.0',
     timestamp: new Date().toISOString(),
+    engineUrl: process.env.ENGINE_URL || 'http://localhost:8000',
   });
 });
 
