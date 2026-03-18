@@ -1,0 +1,42 @@
+=========================================
+1. TELEMETRY INGESTION (/api/telemetry)
+=========================================
+{
+  "timestamp": "2026-03-12T08:00:00.000Z",
+  "objects": [
+    {
+      "id": "DEB-99421",
+      "type": "DEBRIS",
+      "r": {"x": 4500.2, "y": -2100.5, "z": 4800.1},
+      "v": {"x": 1.25, "y": 6.84, "z": 3.12}
+    }
+  ]
+}
+
+
+=========================================
+2. MANEUVER SCHEDULING (/api/maneuver/schedule)
+=========================================
+{
+  "satelliteId": "SAT-Alpha-04",
+  "maneuver_sequence": [
+    {
+      "burn_id": "EVASION_BURN_1",
+      "burnTime": "2026-03-12T14:15:30.000Z",
+      "deltaV_vector": {"x": 0.002, "y": 0.015, "z": -0.001}
+    },
+    {
+      "burn_id": "RECOVERY_BURN_1",
+      "burnTime": "2026-03-12T15:45:30.000Z",
+      "deltaV_vector": {"x": -0.0019, "y": -0.014, "z": 0.001}
+    }
+  ]
+}
+
+
+=========================================
+3. SIMULATION TICK (/api/simulate/step)
+=========================================
+{
+  "step_seconds": 3600
+}

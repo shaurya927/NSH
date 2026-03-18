@@ -1,0 +1,101 @@
+.fleet-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fleet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sat-card {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.sat-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.sat-card.status-critical {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.sat-card.status-warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.sat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sat-title h4 {
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.icon-nominal { color: var(--status-nominal); }
+.icon-warning { color: var(--status-warning); }
+.icon-critical { color: var(--status-critical); }
+.text-muted { color: var(--text-muted); }
+
+.sat-details {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.sat-telemetry {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+}
+
+.telemetry-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.telemetry-col .label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.telemetry-col .value {
+  font-size: 0.9rem;
+  color: var(--accent-cyan);
+}
