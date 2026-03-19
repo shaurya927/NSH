@@ -1,4 +1,4 @@
-import { useRef, useMemo, Suspense } from 'react';
+import { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -153,28 +153,17 @@ const Moon = () => {
       <mesh ref={meshRef}>
         <sphereGeometry args={[0.55, 32, 32]} />
         <meshStandardMaterial map={moonMap} roughness={0.9} metalness={0.1} />
-        <Html distanceFactor={25} center>
-          <div style={{ color: '#94a3b8', fontFamily: 'var(--font-mono)', fontSize: '8px', pointerEvents: 'none' }}>
-            LUNA
-          </div>
-        </Html>
-      </mesh>
-      
-      {/* Faint lunar orbit ring */}
-      <mesh rotation={[Math.PI / 2, -0.15, 0]}>
-         <ringGeometry args={[13.98, 14.02, 128]} />
-         <meshBasicMaterial color="white" transparent opacity={0.03} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );
 };
 
-const SatelliteNode = ({ satellite, orbit }: { satellite: any, orbit: any }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
+const SatelliteNode = ({ satellite, orbit, onSelect }: { satellite: any, orbit: any, onSelect: (s: any) => void }) => {
+  const groupRef = useRef<THREE.Group>(null);
   const color = satellite.status === 'critical' ? '#ef4444' : satellite.status === 'warning' ? '#f59e0b' : '#10b981';
 
   useFrame(() => {
-    if (!meshRef.current) return;
+    if (!groupRef.current) return;
     
     // Map engine lat/lon to 3D sphere coordinate
     const latRad = (satellite.telemetry?.latitude || 0) * (Math.PI / 180);
@@ -187,30 +176,63 @@ const SatelliteNode = ({ satellite, orbit }: { satellite: any, orbit: any }) => 
     const targetZ = radius * -Math.cos(latRad) * Math.sin(lonRad); 
 
     // Smoothly fly to target when sim ticks
-    meshRef.current.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.1);
+    groupRef.current.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.1);
+    
+    // Orient the satellite so it faces the Earth (0, 0, 0)
+    // Three.js lookAt points the local -Z axis towards the target
+    groupRef.current.lookAt(0, 0, 0);
   });
 
   return (
-    <group>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshBasicMaterial color={color} />
-        <Html center zIndexRange={[100, 0]}>
-          <div style={{ 
+    <group 
+      ref={groupRef}
+      onClick={(e) => { e.stopPropagation(); onSelect(satellite); }}
+      onPointerOver={() => document.body.style.cursor = 'pointer'}
+      onPointerOut={() => document.body.style.cursor = 'default'}
+    >
+      {/* Invisible Interactive Hitbox to make clicking easy */}
+      <mesh>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} color="white" />
+      </mesh>
+
+      {/* Central Body */}
+      <mesh>
+        <boxGeometry args={[0.04, 0.04, 0.04]} />
+        <meshStandardMaterial color={color} metalness={0.7} roughness={0.2} />
+      </mesh>
+      
+      {/* Solar Panel Left */}
+      <mesh position={[-0.06, 0, 0]}>
+        <boxGeometry args={[0.06, 0.002, 0.03]} />
+        <meshStandardMaterial color="#1d4ed8" metalness={0.9} roughness={0.1} />
+      </mesh>
+      
+      {/* Solar Panel Right */}
+      <mesh position={[0.06, 0, 0]}>
+        <boxGeometry args={[0.06, 0.002, 0.03]} />
+        <meshStandardMaterial color="#1d4ed8" metalness={0.9} roughness={0.1} />
+      </mesh>
+
+      {/* Antenna / Payload pointing to Earth (local -Z) */}
+      <mesh position={[0, 0, -0.03]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.005, 0.01, 0.02]} />
+        <meshStandardMaterial color="#cbd5e1" metalness={0.6} roughness={0.4} />
+      </mesh>
+
+      <Html center zIndexRange={[100, 0]}>
+        <div 
+          onClick={(e) => { e.stopPropagation(); onSelect(satellite); }}
+          style={{ 
             color: 'white', fontFamily: 'var(--font-mono)', fontSize: '10px', 
             background: 'rgba(10,10,12,0.8)', padding: '2px 6px', 
             borderRadius: '4px', border: `1px solid ${color}`,
-            pointerEvents: 'none', whiteSpace: 'nowrap'
+            pointerEvents: 'auto', cursor: 'pointer', whiteSpace: 'nowrap',
+            marginTop: '25px'
           }}>
-             {satellite.name}
-          </div>
-        </Html>
-      </mesh>
-      
-      <mesh rotation={[orbit.tiltX, 0, orbit.tiltZ]}>
-         <ringGeometry args={[orbit.radius, orbit.radius + 0.015, 64]} />
-         <meshBasicMaterial color="white" transparent opacity={0.05} side={THREE.DoubleSide} />
-      </mesh>
+           {satellite.name}
+        </div>
+      </Html>
     </group>
   );
 };
@@ -245,6 +267,18 @@ const DebrisNode = ({ debris: deb, orbit }: { debris: any, orbit: any }) => {
 };
 
 const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullscreen = false }: OrbitVisualizerProps) => {
+  const [selectedSat, setSelectedSat] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // Keep selected panel updated across sim ticks
+  useEffect(() => {
+    if (selectedSat) {
+      const updated = satellites.find(s => s.id === selectedSat.id);
+      if (updated) setSelectedSat(updated);
+    }
+  }, [satellites, selectedSat]);
+
   // Precompute orbits safely
   const satelliteOrbits = useMemo(() => [
     { radius: 3.2, tiltX: 0.2, tiltZ: 0.5 },
@@ -264,11 +298,69 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
 
   return (
     <div className={`orbit-visualizer ${fullscreen ? 'fullscreen' : ''}`} style={{ width: '100%', height: '100%', minHeight: fullscreen ? 0 : '600px', position: 'relative' }}>
+      
+      {/* Search Bar Overlay */}
+      {!minimal && (
+        <div style={{ position: 'absolute', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 20, width: '300px', pointerEvents: 'auto' }}>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search satellites..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowDropdown(true);
+              }}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              style={{
+                width: '100%', padding: '10px 16px', borderRadius: '8px',
+                background: 'rgba(10,12,16,0.85)', border: '1px solid rgba(255,255,255,0.2)',
+                color: 'white', fontFamily: 'var(--font-mono)', fontSize: '14px', outline: 'none',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)', boxSizing: 'border-box'
+              }}
+            />
+            {showDropdown && searchQuery && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, width: '100%', marginTop: '8px',
+                background: 'rgba(10,12,16,0.95)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '8px', maxHeight: '200px', overflowY: 'auto',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.7)', padding: '4px', boxSizing: 'border-box'
+              }}>
+                {satellites.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
+                  satellites.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).map((sat, i) => (
+                    <div
+                      key={sat.id || i}
+                      onClick={() => {
+                        setSelectedSat(sat);
+                        setSearchQuery('');
+                        setShowDropdown(false);
+                      }}
+                      style={{
+                        padding: '10px 12px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '13px',
+                        color: sat.status === 'nominal' ? '#10b981' : sat.status === 'warning' ? '#f59e0b' : '#ef4444',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {sat.name}
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '10px', color: '#64748b', fontSize: '12px', textAlign: 'center' }}>No matches found</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Canvas className="orbit-canvas" camera={{ position: [0, 2, 8], fov: 45 }}>
         <color attach="background" args={['#0a0a0c']} />
         <ambientLight intensity={0.05} />
         
-        <EffectComposer disableNormalPass>
+        <EffectComposer enableNormalPass={false}>
           <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
         </EffectComposer>
 
@@ -282,7 +374,7 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
         </Suspense>
         
         {satellites.map((sat, i) => (
-          <SatelliteNode key={`sat-${i}`} satellite={sat} orbit={satelliteOrbits[i % satelliteOrbits.length]} />
+          <SatelliteNode key={`sat-${i}`} satellite={sat} orbit={satelliteOrbits[i % satelliteOrbits.length]} onSelect={setSelectedSat} />
         ))}
         {debris.map((deb, i) => (
           <DebrisNode key={`deb-${i}`} debris={deb} orbit={debrisOrbits[i % debrisOrbits.length]} />
@@ -299,6 +391,46 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
           <div className="data-box bottom-right glass-panel" style={{ pointerEvents: 'auto' }}>
             <span className="mono-text label">INTERACTION</span>
             <span className="mono-text value">ALT-DRAG ROTATE</span>
+          </div>
+        </div>
+      )}
+
+      {selectedSat && (
+        <div className="satellite-info-panel glass-panel" style={{
+          position: 'absolute', top: '50%', left: '24px', transform: 'translateY(-50%)',
+          width: '360px', pointerEvents: 'auto', zIndex: 10,
+          background: 'rgba(10,12,16,0.95)', border: `1px solid ${selectedSat.status === 'nominal' ? '#10b981' : selectedSat.status === 'warning' ? '#f59e0b' : '#ef4444'}`,
+          borderRadius: '8px', padding: '20px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+            <h3 style={{ margin: 0, color: '#0ea5e9', fontFamily: 'var(--font-mono)', fontSize: '16px', textTransform: 'uppercase', letterSpacing: '1px', paddingRight: '12px', wordBreak: 'break-word' }}>
+              {selectedSat.name}
+            </h3>
+            <button onClick={() => setSelectedSat(null)} style={{ background: 'transparent', border: 'none', color: '#e2e8f0', cursor: 'pointer', fontSize: '24px', padding: '0 4px', lineHeight: '1',  marginTop: '-4px' }}>
+              &times;
+            </button>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(100px, max-content) 1fr', gap: '14px', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
+            <span style={{ color: '#94a3b8' }}>OBJ ID:</span>
+            <span style={{ color: '#e2e8f0', textAlign: 'right' }}>#{selectedSat.noradId || 'UNKNOWN'}</span>
+            
+            <span style={{ color: '#94a3b8' }}>STATUS:</span>
+            <span style={{ color: selectedSat.status === 'nominal' ? '#10b981' : selectedSat.status === 'warning' ? '#f59e0b' : '#ef4444', textAlign: 'right', fontWeight: 'bold' }}>
+              {String(selectedSat.status).toUpperCase()}
+            </span>
+
+            <span style={{ color: '#94a3b8' }}>ALTITUDE:</span>
+            <span style={{ color: '#e2e8f0', textAlign: 'right' }}>{selectedSat.telemetry?.altitude?.toFixed(2) || '---'} km</span>
+            
+            <span style={{ color: '#94a3b8' }}>VELOCITY:</span>
+            <span style={{ color: '#e2e8f0', textAlign: 'right' }}>{selectedSat.telemetry?.velocity?.vy?.toFixed(3) || '---'} km/s</span>
+            
+            <span style={{ color: '#94a3b8' }}>INCLINATION:</span>
+            <span style={{ color: '#e2e8f0', textAlign: 'right' }}>{selectedSat.telemetry?.inclination?.toFixed(2) || '---'}°</span>
+            
+            <span style={{ color: '#94a3b8' }}>ECCENTRICITY:</span>
+            <span style={{ color: '#e2e8f0', textAlign: 'right' }}>{selectedSat.telemetry?.eccentricity?.toFixed(6) || '---'}</span>
           </div>
         </div>
       )}

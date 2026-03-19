@@ -170,6 +170,22 @@ const Dashboard = () => {
           <span className="mono-text" style={{ fontSize: '12px' }}>ESC TO CLOSE</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
+        
+        <div className="simulation-controls glass-panel" style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 1000, margin: 0 }}>
+          <div className="sim-status">
+            <span className="mono-text label">SIM STEP:</span>
+            <span className="mono-text value">{step}</span>
+          </div>
+          <button 
+            className={`btn-advance ${isSimulating ? 'simulating' : ''}`}
+            onClick={advanceSimulation}
+            disabled={isSimulating}
+          >
+            <Clock size={16} />
+            <span>{isSimulating ? 'PROPAGATING...' : 'ADVANCE +60s'}</span>
+          </button>
+        </div>
+
         <OrbitVisualizer
           satellites={data.satellites}
           debris={data.debris}
