@@ -158,7 +158,15 @@ async def simulate_step(payload: SimulateStepPayload):
         "maneuvers_executed": 0    # Placeholder: add maneuver logic if available
     }
 
-# --- API #4: Visualization Snapshot ---
+# --- API #4: Clear Engine State ---
+@app.post("/api/clear")
+async def clear_state():
+    global_state["satellites"].clear()
+    global_state["debris"].clear()
+    sim_engine.objects.clear()
+    return {"status": "CLEARED"}
+
+# --- API #5: Visualization Snapshot ---
 
 @app.get("/api/visualization/snapshot")
 async def visualization_snapshot():
