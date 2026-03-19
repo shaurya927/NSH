@@ -28,6 +28,7 @@ const OFFLINE_DATA = {
   ],
   debris: [{ name: 'DEB-001' }, { name: 'DEB-002' }, { name: 'DEB-003' }],
   conjunctions: [],
+  timestamp: new Date().toISOString(),
 };
 
 const Dashboard = () => {
@@ -41,7 +42,7 @@ const Dashboard = () => {
   const [offlineMode, setOfflineMode] = useState(false);
   const [engineOnline, setEngineOnline] = useState(false);
   const [simTime, setSimTime] = useState(0);
-  const [lastStepResult, setLastStepResult] = useState<any>(null);
+
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -80,7 +81,6 @@ const Dashboard = () => {
 
       // Capture engine result for display
       if (res.data.engineResult) {
-        setLastStepResult(res.data.engineResult);
         setSimTime(res.data.engineResult.simulationTime || 0);
 
         const collCount = res.data.engineResult.collisionsDetected?.length || 0;
@@ -277,25 +277,13 @@ const Dashboard = () => {
         {activeTab === '2d' && (
           <div className="tracker-2d-layout">
             <div className="map-section">
-              <MapVisualizer satellites={data.satellites} debris={data.debris} conjunctions={data.conjunctions} />
+              <MapVisualizer satellites={data.satellites} debris={data.debris} conjunctions={data.conjunctions} timestamp={data.timestamp} />
             </div>
             <div className="radar-section">
               <RadarVisualizer satellites={data.satellites} />
             </div>
             <div className="table-section">
               <TrackerTable satellites={data.satellites} />
-            </div>
-            <div className="info-section glass-panel">
-              <h3 className="section-title">Telemetry Stream</h3>
-              <div className="chart-placeholder">
-                <div className="chart-line"></div>
-                <div className="chart-line secondary"></div>
-              </div>
-              <div className="sat-info">
-                <h4>System Load</h4>
-                <p className="text-muted">VHF band (144 MHz)</p>
-                <div className="progress-bar"><div className="fill" style={{width: '64%'}}></div></div>
-              </div>
             </div>
           </div>
         )}

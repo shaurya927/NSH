@@ -151,8 +151,8 @@ function buildSeedTelemetry() {
     objects.push({
       id: sat.id,
       type: 'SATELLITE',
-      r_km: r,
-      v_km_s: v,
+      r: { x: r[0], y: r[1], z: r[2] },
+      v: { x: v[0], y: v[1], z: v[2] },
       mass_kg: 550.0,
       fuel_kg: meta?.initialFuelKg ?? 50.0,
     });
@@ -167,8 +167,8 @@ function buildSeedTelemetry() {
     objects.push({
       id: deb.id,
       type: 'DEBRIS',
-      r_km: r,
-      v_km_s: v,
+      r: { x: r[0], y: r[1], z: r[2] },
+      v: { x: v[0], y: v[1], z: v[2] },
       mass_kg: 1.0,
     });
   }

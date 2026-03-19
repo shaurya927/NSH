@@ -23,6 +23,13 @@ router.post('/simulate/step', simulateStep);
 // --- Visualization Routes ---
 router.get('/visualization/snapshot', getSnapshot);
 
+// --- Engine Routes ---
+import { seedEngine } from '../services/engineSeeder';
+router.get('/seed', async (_req, res) => {
+  const result = await seedEngine();
+  res.json({ success: result, message: result ? 'Engine seeded successfully' : 'Failed to seed engine' });
+});
+
 // --- Health Check ---
 router.get('/health', (_req, res) => {
   res.json({

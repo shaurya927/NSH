@@ -49,7 +49,10 @@ async function engineFetch<T = any>(
 export async function proxyTelemetry(objects: any[]): Promise<EngineProxyResponse> {
   return engineFetch('/api/telemetry', {
     method: 'POST',
-    body: JSON.stringify({ objects }),
+    body: JSON.stringify({ 
+      timestamp: new Date().toISOString(),
+      objects 
+    }),
   });
 }
 
@@ -206,7 +209,7 @@ export function transformSnapshot(engineData: any) {
     satellites,
     debris,
     conjunctions: [] as any[],
-    timestamp: new Date().toISOString(),
+    timestamp: engineData.timestamp || new Date().toISOString(),
     simulationTime: engineData.timestamp_s || 0,
   };
 }

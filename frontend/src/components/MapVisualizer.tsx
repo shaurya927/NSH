@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Circle, Marker, Polyline, Tooltip, LayerGroup 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapVisualizer.css';
+import Terminator from './Terminator';
 
 // Fix typical leaflet generic icon issues
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -19,6 +20,7 @@ interface MapVisualizerProps {
   satellites: any[];
   debris: any[];
   conjunctions: any[];
+  timestamp?: string;
 }
 
 const customIcon = (color: string) => new L.DivIcon({
@@ -28,7 +30,7 @@ const customIcon = (color: string) => new L.DivIcon({
   iconAnchor: [6, 6]
 });
 
-const MapVisualizer = ({ satellites = [], debris: _debris = [] }: MapVisualizerProps) => {
+const MapVisualizer = ({ satellites = [], debris: _debris = [], timestamp }: MapVisualizerProps) => {
   // Use real data from the Backend/Engine instead of a mocked timer
   const liveSatellites = useMemo(() => {
     return satellites.map((sat) => {
@@ -55,20 +57,21 @@ const MapVisualizer = ({ satellites = [], debris: _debris = [] }: MapVisualizerP
   return (
     <div className="map-visualizer">
       <MapContainer 
-        center={[15, 0]} 
-        zoom={2} 
+        center={[20, 0]} 
+        zoom={2.5} 
         minZoom={2}
-        maxBounds={[[-90, -180], [90, 180]]}
-        maxBoundsViscosity={1.0}
+        zoomSnap={0}
+        maxBounds={[[-90, -Infinity], [90, Infinity]]}
+        worldCopyJump={true}
         style={{ height: '100%', width: '100%', background: '#0a0a0c' }}
         zoomControl={false}
         attributionControl={false}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          noWrap={true}
-          bounds={[[-90, -180], [90, 180]]}
         />
+        
+        <Terminator timestamp={timestamp} />
         
         {liveSatellites.map((sat, i) => (
           <LayerGroup key={`satGroup-${i}`}>
