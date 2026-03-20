@@ -148,7 +148,18 @@ async def simulate_step(payload: SimulateStepPayload):
 
     # Sync state to engine, step, then sync back
     sync_state_to_engine()
-    sim_engine.step(payload.step_seconds)
+    
+    total_seconds = payload.step_seconds
+    if total_seconds != 0:
+        step_size = 60 if total_seconds > 0 else -60
+        steps = abs(total_seconds) // abs(step_size)
+        remainder = total_seconds % step_size
+        
+        for _ in range(steps):
+            sim_engine.step(step_size)
+        if remainder != 0:
+            sim_engine.step(remainder)
+
     sync_engine_to_state()
 
     return {

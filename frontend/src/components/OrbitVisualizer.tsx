@@ -1,6 +1,6 @@
 import { useRef, useMemo, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { OrbitControls, Html } from '@react-three/drei';
+import { OrbitControls, Html, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import './OrbitVisualizer.css';
@@ -16,7 +16,7 @@ interface OrbitVisualizerProps {
 const EarthGlobe = () => {
   const groupRef = useRef<THREE.Group>(null);
   const [colorMap] = useLoader(THREE.TextureLoader, [
-    'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
+    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg'
   ]);
 
   useFrame(() => {
@@ -43,15 +43,10 @@ const EarthGlobe = () => {
 };
 
 const StarfieldEnvironment = () => {
-  const [starMap] = useLoader(THREE.TextureLoader, [
-    'https://unpkg.com/three-globe/example/img/night-sky.png'
-  ]);
-  
   return (
-    <mesh>
-      <sphereGeometry args={[100, 64, 64]} />
-      <meshBasicMaterial map={starMap} side={THREE.BackSide} depthWrite={false} color="#aaaaaa" />
-    </mesh>
+    <group>
+      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+    </group>
   );
 };
 

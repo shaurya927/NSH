@@ -21,8 +21,8 @@ class SimulationEngine:
         LOGGER.debug("object_added name=%s total=%d", getattr(obj, "name", "unknown"), len(self.objects))
 
     def step(self, dt):
-        if dt <= 0:
-            raise ValueError("dt must be > 0")
+        if dt == 0:
+            return
 
         # Keep this loop minimal; integration cost dominates per object.
         for obj in self.objects:

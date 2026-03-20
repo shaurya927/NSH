@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Clock, ShieldCheck, Crosshair, Satellite, Zap } from 'lucide-react';
@@ -43,6 +43,37 @@ const Dashboard = () => {
   const [engineOnline, setEngineOnline] = useState(false);
   const [simTime, setSimTime] = useState(0);
 
+  const requestToken = useRef(0);
+
+  const advanceSimulation = async (seconds: number) => {
+    requestToken.current++; // Invalidate pending fetches
+    try {
+      setIsSimulating(true);
+      const res = await axios.post(`${API_URL}/simulate/step`, { step_seconds: seconds });
+      const responseData = res.data.data || res.data;
+      setData(responseData);
+      setStep(prev => prev + (seconds > 0 ? 1 : -1));
+
+      if (res.data.engineResult) {
+        setSimTime(res.data.engineResult.simulationTime || 0);
+
+        const collCount = res.data.engineResult.collisionsDetected?.length || 0;
+        const maneuvers = res.data.engineResult.maneuversExecuted || 0;
+        if (collCount > 0 || maneuvers > 0) {
+          showToast(`Step: ${collCount} collisions, ${maneuvers} maneuvers`);
+        }
+      }
+
+      setEngineOnline(res.data.engineOnline ?? false);
+    } catch (err) {
+      console.error("Simulation failed", err);
+      showToast('Backend offline — simulation unavailable');
+    } finally {
+      setIsSimulating(false);
+      requestToken.current++; // Invalidate fetches that might have started during simulation
+    }
+  };
+
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -50,8 +81,13 @@ const Dashboard = () => {
   };
 
   const fetchSnapshot = useCallback(async () => {
+    if (isSimulating) return;
+    
+    const token = ++requestToken.current;
     try {
       const res = await axios.get(`${API_URL}/visualization/snapshot`);
+      if (requestToken.current !== token) return; // Stale request, discard
+      
       const responseData = res.data.data || res.data;
       setData(responseData);
       setEngineOnline(res.data.engineOnline ?? false);
@@ -69,35 +105,7 @@ const Dashboard = () => {
     }
   }, []);
 
-  const advanceSimulation = async () => {
-    try {
-      setIsSimulating(true);
-      const res = await axios.post(`${API_URL}/simulate/step`, {
-        step_seconds: 60,
-      });
-      const responseData = res.data.data || res.data;
-      setData(responseData);
-      setStep(prev => prev + 1);
 
-      // Capture engine result for display
-      if (res.data.engineResult) {
-        setSimTime(res.data.engineResult.simulationTime || 0);
-
-        const collCount = res.data.engineResult.collisionsDetected?.length || 0;
-        const maneuvers = res.data.engineResult.maneuversExecuted || 0;
-        if (collCount > 0 || maneuvers > 0) {
-          showToast(`Step ${step + 1}: ${collCount} collisions, ${maneuvers} maneuvers`);
-        }
-      }
-
-      setEngineOnline(res.data.engineOnline ?? false);
-    } catch (err) {
-      console.error("Simulation failed", err);
-      showToast('Backend offline — simulation unavailable');
-    } finally {
-      setIsSimulating(false);
-    }
-  };
 
   useEffect(() => {
     fetchSnapshot();
@@ -171,18 +179,18 @@ const Dashboard = () => {
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
         
-        <div className="simulation-controls glass-panel" style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 1000, margin: 0 }}>
-          <div className="sim-status">
+        <div className="simulation-controls glass-panel" style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 1000, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="sim-status" style={{ marginBottom: '4px' }}>
             <span className="mono-text label">SIM STEP:</span>
             <span className="mono-text value">{step}</span>
           </div>
-          <button 
-            className={`btn-advance ${isSimulating ? 'simulating' : ''}`}
-            onClick={advanceSimulation}
-            disabled={isSimulating}
-          >
+          <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(-5400)} disabled={isSimulating}>
             <Clock size={16} />
-            <span>{isSimulating ? 'PROPAGATING...' : 'ADVANCE +60s'}</span>
+            <span>{isSimulating ? 'SIMULATING...' : '-90 MIN'}</span>
+          </button>
+          <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(5400)} disabled={isSimulating}>
+            <Clock size={16} />
+            <span>{isSimulating ? 'SIMULATING...' : '+90 MIN'}</span>
           </button>
         </div>
 
@@ -225,18 +233,18 @@ const Dashboard = () => {
                 </p>
               </div>
               
-              <div className="simulation-controls glass-panel">
-                <div className="sim-status">
+              <div className="simulation-controls glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                <div className="sim-status" style={{ marginBottom: '4px' }}>
                   <span className="mono-text label">SIM STEP:</span>
                   <span className="mono-text value">{step}</span>
                 </div>
-                <button 
-                  className={`btn-advance ${isSimulating ? 'simulating' : ''}`}
-                  onClick={advanceSimulation}
-                  disabled={isSimulating}
-                >
+                <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(-5400)} disabled={isSimulating} style={{ width: '100%' }}>
                   <Clock size={16} />
-                  <span>{isSimulating ? 'PROPAGATING...' : 'ADVANCE +60s'}</span>
+                  <span>{isSimulating ? 'SIMULATING...' : '-90 MIN'}</span>
+                </button>
+                <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(5400)} disabled={isSimulating} style={{ width: '100%' }}>
+                  <Clock size={16} />
+                  <span>{isSimulating ? 'SIMULATING...' : '+90 MIN'}</span>
                 </button>
               </div>
             </div>

@@ -22,6 +22,7 @@ export const SATELLITE_REGISTRY: Record<string, {
   period: number;
   altitude: number;
   velocityMag: number;
+  satrec?: any;
 }> = {};
 
 function classifyOrbitType(altKm: number, incDeg: number): string {
@@ -207,6 +208,7 @@ function propagateTle(name: string, tle1: string, tle2: string) {
         period: Math.round(periodMin * 100) / 100,
         altitude: Math.round(altitudeKm * 100) / 100,
         velocityMag: Math.round(vMag * 1000) / 1000,
+        satrec,
       };
     }
 

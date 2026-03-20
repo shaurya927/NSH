@@ -4,6 +4,7 @@
 // ============================================
 
 import { SATELLITE_REGISTRY, DEBRIS_REGISTRY } from './engineSeeder';
+import * as satellite from 'satellite.js';
 
 const ENGINE_URL = process.env.ENGINE_URL || 'http://localhost:8000';
 
@@ -95,6 +96,7 @@ export async function proxyHealthCheck(): Promise<boolean> {
 // --- Transform engine snapshot to frontend format ---
 export function transformSnapshot(engineData: any) {
   const R_EARTH_KM = 6378.137;
+  const engineTimestamp = engineData.timestamp ? new Date(engineData.timestamp) : new Date();
 
   const satellites = (engineData.satellites || []).map((row: any) => {
     // Engine format: [id, lat, lon, fuel_kg, status]
