@@ -18,8 +18,46 @@ class CollisionConfig:
     max_conjunction_results: int = 20_000
 
 
+class SpatialHashGrid:
+    """O(N) Distributed Spatial Hashing for high-performance collision detection."""
+    def __init__(self, cell_size_km: float):
+        self.cell_size = float(cell_size_km)
+        
+    def query_pairs(self, pos: np.ndarray) -> np.ndarray:
+        # 1. Map continuous 3D floating coordinates into discrete spatial voxels
+        grid_coords = np.floor(pos / self.cell_size).astype(np.int64)
+        
+        # 2. Distributed hash function using large primes to minimize grid collisions
+        h1, h2, h3 = np.int64(73856093), np.int64(19349663), np.int64(83492791)
+        hashes = (grid_coords[:, 0] * h1) ^ (grid_coords[:, 1] * h2) ^ (grid_coords[:, 2] * h3)
+        
+        # 3. Group objects by their hashed shard ID
+        sort_idx = np.argsort(hashes)
+        sorted_hashes = hashes[sort_idx]
+        
+        # 4. Identify boundary partitions where shard IDs change
+        unique_mask = np.concatenate(([True], sorted_hashes[1:] != sorted_hashes[:-1]))
+        bin_starts = np.nonzero(unique_mask)[0]
+        bin_ends = np.concatenate((bin_starts[1:], [len(pos)]))
+        
+        # 5. Extract collision pairs localized entirely within individual shards
+        pairs = []
+        for start, end in zip(bin_starts, bin_ends):
+            if end - start > 1:
+                chunk = sort_idx[start:end]
+                # Brute-force within the small shard
+                for i in range(len(chunk)):
+                    for j in range(i + 1, len(chunk)):
+                        pairs.append((chunk[i], chunk[j]))
+        
+        if not pairs:
+            return np.empty((0, 2), dtype=np.int32)
+            
+        return np.array(pairs, dtype=np.int32)
+
+
 class CollisionEngine:
-    """KDTree collision detector with optional TCA prediction."""
+    """Distributed Spatial Hashing detector with TCA prediction."""
 
     def __init__(self, cfg: CollisionConfig | None = None) -> None:
         self._cfg = cfg or CollisionConfig()
@@ -33,15 +71,25 @@ class CollisionEngine:
         if n < 2:
             return np.empty((0, 2), dtype=np.int32)
 
-        tree = cKDTree(pos)
-        pairs = tree.query_pairs(
-            r=float(self._cfg.collision_distance_km),
-            output_type="ndarray",
-        )
-        if pairs.size == 0:
+        # Utilize Spatial Hashing instead of KDTree for O(N) distributed partitioning
+        # Cell size must encapsulate collision bounds (using candidate radius for safety margins)
+        grid = SpatialHashGrid(cell_size_km=self._cfg.conjunction_candidate_radius_km)
+        candidate_pairs = grid.query_pairs(pos)
+        
+        if candidate_pairs.size == 0:
             return np.empty((0, 2), dtype=np.int32)
+            
+        # Precise distance filtering inside identified spatial cells
+        i = candidate_pairs[:, 0]
+        j = candidate_pairs[:, 1]
+        dist_sq = np.sum((pos[i] - pos[j]) ** 2, axis=1)
+        
+        hit_mask = dist_sq <= (self._cfg.collision_distance_km ** 2)
+        pairs = candidate_pairs[hit_mask]
+
         if pairs.shape[0] > self._cfg.max_pairs:
             pairs = pairs[: self._cfg.max_pairs]
+            
         return pairs.astype(np.int32, copy=False)
 
     def assess_conjunctions(
