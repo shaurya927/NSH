@@ -261,7 +261,66 @@ const DebrisNode = ({ debris: deb, orbit }: { debris: any, orbit: any }) => {
   );
 };
 
-const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullscreen = false }: OrbitVisualizerProps) => {
+const KesslerCascade = ({ active }: { active: boolean }) => {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const count = 5000;
+  
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  
+  // Pre-generate random orbital bands
+  const debrisData = useMemo(() => {
+    const data = [];
+    for (let i = 0; i < count; i++) {
+        const radius = 2.5 + Math.random() * 2.5; // LEO to MEO
+        const speed = 0.01 + Math.random() * 0.04;
+        const angle = Math.random() * Math.PI * 2;
+        const tiltX = (Math.random() - 0.5) * Math.PI;
+        const tiltZ = (Math.random() - 0.5) * Math.PI;
+        data.push({ radius, speed, angle, tiltX, tiltZ });
+    }
+    return data;
+  }, []);
+
+  useFrame(() => {
+    if (!meshRef.current || !active) return;
+    
+    debrisData.forEach((d, i) => {
+      d.angle += d.speed;
+      
+      const x = Math.cos(d.angle) * d.radius;
+      const z = Math.sin(d.angle) * d.radius;
+      
+      dummy.position.set(x, 0, z);
+      // Apply orbital inclination tilt
+      dummy.rotation.set(d.tiltX, 0, d.tiltZ);
+      dummy.position.applyEuler(dummy.rotation);
+      
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  if (!active) return null;
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
+      <boxGeometry args={[0.02, 0.02, 0.02]} />
+      <meshBasicMaterial color="#ef4444" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
+    </instancedMesh>
+  );
+};
+
+interface OrbitVisualizerProps {
+  satellites: any[];
+  debris: any[];
+  conjunctions: any[];
+  minimal?: boolean;
+  fullscreen?: boolean;
+  kesslerMode?: boolean;
+}
+
+const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullscreen = false, kesslerMode = false }: OrbitVisualizerProps) => {
   const [selectedSat, setSelectedSat] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -374,6 +433,8 @@ const OrbitVisualizer = ({ satellites = [], debris = [], minimal = false, fullsc
         {debris.map((deb, i) => (
           <DebrisNode key={`deb-${i}`} debris={deb} orbit={debrisOrbits[i % debrisOrbits.length]} />
         ))}
+
+        <KesslerCascade active={kesslerMode} />
       </Canvas>
       
       {!minimal && (

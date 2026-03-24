@@ -43,6 +43,15 @@ const Dashboard = () => {
   const [engineOnline, setEngineOnline] = useState(false);
   const [simTime, setSimTime] = useState(0);
 
+  const [kesslerMode, setKesslerMode] = useState(false);
+
+  // Time scrubber handler
+  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    const delta = val - simTime;
+    if (delta !== 0) advanceSimulation(delta);
+  };
+
   const requestToken = useRef(0);
 
   const advanceSimulation = async (seconds: number) => {
@@ -59,6 +68,10 @@ const Dashboard = () => {
 
         const collCount = res.data.engineResult.collisionsDetected?.length || 0;
         const maneuvers = res.data.engineResult.maneuversExecuted || 0;
+        
+        // Auto-trigger Kessler Mode visually if backend detects catastrophic cascade
+        if (collCount > 5) setKesslerMode(true);
+        
         if (collCount > 0 || maneuvers > 0) {
           showToast(`Step: ${collCount} collisions, ${maneuvers} maneuvers`);
         }
@@ -73,7 +86,6 @@ const Dashboard = () => {
       requestToken.current++; // Invalidate fetches that might have started during simulation
     }
   };
-
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -103,9 +115,7 @@ const Dashboard = () => {
       setLoading(false);
       setData((prev: any) => prev ?? OFFLINE_DATA);
     }
-  }, []);
-
-
+  }, [isSimulating]);
 
   useEffect(() => {
     fetchSnapshot();
@@ -179,19 +189,45 @@ const Dashboard = () => {
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
         
-        <div className="simulation-controls glass-panel" style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 1000, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="simulation-controls glass-panel" style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 1000, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '300px' }}>
           <div className="sim-status" style={{ marginBottom: '4px' }}>
             <span className="mono-text label">SIM STEP:</span>
             <span className="mono-text value">{step}</span>
           </div>
-          <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(-5400)} disabled={isSimulating}>
-            <Clock size={16} />
-            <span>{isSimulating ? 'SIMULATING...' : '-90 MIN'}</span>
+          
+          <button 
+            className={`btn-advance ${kesslerMode ? 'alert glow-text' : ''}`} 
+            onClick={() => setKesslerMode(!kesslerMode)} 
+            style={{ 
+              background: kesslerMode ? 'rgba(239, 68, 68, 0.2)' : undefined,
+              borderColor: kesslerMode ? '#ef4444' : undefined,
+              color: kesslerMode ? '#ef4444' : undefined
+            }}
+          >
+            <AlertTriangle size={16} />
+            <span>KESSLER SYNDROME: {kesslerMode ? 'ON' : 'OFF'}</span>
           </button>
-          <button className={`btn-advance ${isSimulating ? 'simulating' : ''}`} onClick={() => advanceSimulation(5400)} disabled={isSimulating}>
-            <Clock size={16} />
-            <span>{isSimulating ? 'SIMULATING...' : '+90 MIN'}</span>
-          </button>
+          
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+              <span className="mono-text">T+0</span>
+              <span className="mono-text">DVR SCRUBBER</span>
+              <span className="mono-text">T+24H</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="86400" 
+              step="3600" 
+              value={simTime}
+              onChange={handleScrub}
+              disabled={isSimulating}
+              style={{ width: '100%', cursor: isSimulating ? 'wait' : 'pointer' }}
+            />
+            <div style={{ textAlign: 'center', fontSize: '12px', color: '#0ea5e9', marginTop: '4px' }} className="mono-text">
+               {formatSimTime(simTime)}
+            </div>
+          </div>
         </div>
 
         <OrbitVisualizer
@@ -200,6 +236,7 @@ const Dashboard = () => {
           conjunctions={data.conjunctions}
           minimal
           fullscreen
+          kesslerMode={kesslerMode}
         />
       </div>
     );
