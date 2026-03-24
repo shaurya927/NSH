@@ -1,3 +1,10 @@
+"""
+Vectorized RK4 integrator with support for velocity-dependent perturbations.
+
+Passes velocity (and optionally mass) to the acceleration function at every
+RK4 sub-step so that atmospheric drag and SRP are correctly evaluated.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -45,8 +52,28 @@ class RK4Workspace:
 
 
 
-def rk4_step_many(r_km: np.ndarray, v_km_s: np.ndarray, dt_s: float, workspace: RK4Workspace | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Vectorized RK4 integrator for coupled (r, v) state."""
+def rk4_step_many(
+    r_km: np.ndarray,
+    v_km_s: np.ndarray,
+    dt_s: float,
+    workspace: RK4Workspace | None = None,
+    mass_kg: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Vectorized RK4 integrator for coupled (r, v) state.
+
+    Parameters
+    ----------
+    r_km : ndarray (N, 3)
+        Positions in km.
+    v_km_s : ndarray (N, 3)
+        Velocities in km/s.
+    dt_s : float
+        Time step in seconds.
+    workspace : RK4Workspace, optional
+        Reusable scratch arrays to avoid allocations.
+    mass_kg : ndarray (N,), optional
+        Per-object mass in kg. Passed to acceleration_many for drag/SRP.
+    """
     r0 = np.asarray(r_km, dtype=np.float64)
     v0 = np.asarray(v_km_s, dtype=np.float64)
     if r0.ndim != 2 or v0.ndim != 2 or r0.shape != v0.shape or r0.shape[1] != 3:
@@ -80,26 +107,31 @@ def rk4_step_many(r_km: np.ndarray, v_km_s: np.ndarray, dt_s: float, workspace: 
 
     half = 0.5 * dt
 
-    acceleration_many(r, out=k1_v)
+    # ── Stage 1 ──────────────────────────────────────────────────────────
+    acceleration_many(r, out=k1_v, v_km_s=v, mass_kg=mass_kg)
 
+    # ── Stage 2 ──────────────────────────────────────────────────────────
     np.multiply(v, half, out=r2)
     np.add(r, r2, out=r2)
     np.multiply(k1_v, half, out=v2)
     np.add(v, v2, out=v2)
-    acceleration_many(r2, out=k2_v)
+    acceleration_many(r2, out=k2_v, v_km_s=v2, mass_kg=mass_kg)
 
+    # ── Stage 3 ──────────────────────────────────────────────────────────
     np.multiply(v2, half, out=r3)
     np.add(r, r3, out=r3)
     np.multiply(k2_v, half, out=v3)
     np.add(v, v3, out=v3)
-    acceleration_many(r3, out=k3_v)
+    acceleration_many(r3, out=k3_v, v_km_s=v3, mass_kg=mass_kg)
 
+    # ── Stage 4 ──────────────────────────────────────────────────────────
     np.multiply(v3, dt, out=r4)
     np.add(r, r4, out=r4)
     np.multiply(k3_v, dt, out=v4)
     np.add(v, v4, out=v4)
-    acceleration_many(r4, out=k4_v)
+    acceleration_many(r4, out=k4_v, v_km_s=v4, mass_kg=mass_kg)
 
+    # ── Weighted average ─────────────────────────────────────────────────
     w = dt / 6.0
 
     # out_r = r + w * (v + 2*v2 + 2*v3 + v4)

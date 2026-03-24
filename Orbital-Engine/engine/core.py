@@ -875,7 +875,18 @@ class ACMEngine:
             r_all[sat_n : sat_n + deb_n] = self._deb.r_active
             v_all[sat_n : sat_n + deb_n] = self._deb.v_active
 
-        r_next, v_next = rk4_step_many(r_all, v_all, dt, workspace=self._rk4_ws_sat)
+        # Build combined mass array for drag/SRP perturbations.
+        mass_all = np.empty((total,), dtype=np.float64)
+        if sat_n:
+            mass_all[:sat_n] = self._sat.mass_active
+        if deb_n:
+            mass_all[sat_n : sat_n + deb_n] = self._deb.mass_active
+
+        r_next, v_next = rk4_step_many(
+            r_all, v_all, dt,
+            workspace=self._rk4_ws_sat,
+            mass_kg=mass_all,
+        )
 
         if sat_n:
             self._sat.r[:sat_n] = r_next[:sat_n]
@@ -885,6 +896,7 @@ class ACMEngine:
             self._deb.v[:deb_n] = v_next[sat_n : sat_n + deb_n]
 
         return r_next, v_next
+
 
     def _has_los_for_sat_index(self, sat_idx: int) -> bool:
         """Return True if satellite at index has LOS to any ground station."""
