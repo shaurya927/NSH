@@ -1,0 +1,11 @@
+# Feature 6: Real-World TLE Data Ingestion
+
+## Goal
+Implement a Two-Line Element (TLE) parser that allows the AETHER engine to pull real-world satellite constellations directly from CelesTrak. 
+
+## Details
+Instead of running mock physics, we will:
+1. Create `Orbital-Engine/engine/tle_parser.py`
+2. Fetch the latest `starlink.txt` or `active.txt` from CelesTrak (a public database of all satellites).
+3. Translate SGP4 standard elements (Mean Motion, Eccentricity, Inclination, Right Ascension of Ascending Node, Argument of Perigee, Mean Anomaly) into our Cartesian `(r, v)` state vectors using orbital mechanics parameters.
+4. Let the platform simulate real Starlink satellites crashing!
