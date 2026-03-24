@@ -36,6 +36,13 @@ app.add_middleware(
 # 2. INTERNAL MEMORY (Global State)
 # ==========================================
 
+from integrations import SpaceWeatherMonitor, WebhookNotifier
+import asyncio
+
+# Initialize external integrations
+weather_monitor = SpaceWeatherMonitor()
+webhook = WebhookNotifier(webhook_url="https://hooks.slack.com/services/MOCK/WEBHOOK/URL")
+
 # Global state and simulation engine
 global_state: Dict[str, Any] = {
     "satellites": {},
@@ -45,6 +52,13 @@ global_state: Dict[str, Any] = {
 
 # Initialize the simulation engine
 sim_engine = SimulationEngine()
+
+# Start background tasks
+@app.on_event("startup")
+async def startup_event():
+    # Attempt an initial fetch of live NOAA space weather on boot
+    asyncio.create_task(weather_monitor.fetch_live_weather())
+    asyncio.create_task(webhook.send_alert("SYSTEM ONLINE", "AETHER Constellation Manager has initialized successfully.", "INFO"))
 
 # Helper to sync global_state to sim_engine
 def sync_state_to_engine():
@@ -127,6 +141,11 @@ async def ingest_telemetry(payload: TelemetryPayload):
 # --- API #2: Maneuver Scheduling ---
 @app.post("/api/maneuver/schedule", status_code=status.HTTP_202_ACCEPTED)
 async def schedule_maneuver(payload: ManeuverSchedulePayload):
+    # Alert the operation center via Webhook
+    seq_size = len(payload.maneuver_sequence)
+    msg = f"Scheduled {seq_size} maneuvers for object {payload.satelliteId}."
+    asyncio.create_task(webhook.send_alert(f"Maneuver Ordered: {payload.satelliteId}", msg, "WARNING"))
+    
     return {
         "status": "SCHEDULED",
         "validation": {
